@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import anderson_ksamp
 
-from . import common_args
-from ..util import read_param_file, ResultDict, extract_group_names, _check_groups
+# from . import common_args
+from SALib.util import read_param_file, ResultDict, extract_group_names, _check_groups
 
 
 def analyze(
@@ -64,6 +64,8 @@ def analyze(
 
     Analysis results are normalized against the maximum value such that 1.0 indicates
     the greatest sensitivity.
+
+    GT note: I have modified this script to look at convergence vs non-convergence.
 
     Parameters
     ----------
@@ -148,9 +150,17 @@ def rsa(X: np.ndarray, y: np.ndarray, bins: int = 10, target="X") -> np.ndarray:
     if target == "X":
         t_arr = X_di  # target factor space for analysis
         m_arr = y  # map behavioral region of factor space to output space
-    elif target == "Y":
+        quants = np.quantile(t_arr, seq)
+    if target == "Y":
         t_arr = y  # target output space for analysis
         m_arr = X_di  # map outputs back to factor space
+        quants = np.quantile(t_arr, seq)
+    elif target == "convergence":
+        t_arr = y  # target output space for analysis
+        m_arr = X_di  # map outputs back to factor space
+        # Convergence is between 1e-15 and 1e-8
+        convergence_group = [1.0e-15, 1.0e-8, 1.0e17]
+        quants = np.array(convergence_group)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -159,7 +169,6 @@ def rsa(X: np.ndarray, y: np.ndarray, bins: int = 10, target="X") -> np.ndarray:
 
             # Assess first bin separately, making sure that the
             # bin edges are inclusive of the lower bound
-            quants = np.quantile(t_arr, seq)
             b = (quants[0] <= t_arr) & (t_arr <= quants[1])
             if _has_samples(y, b):
                 r_s[0, d_i] = anderson_ksamp((m_arr[b], m_arr[~b])).statistic
@@ -167,7 +176,6 @@ def rsa(X: np.ndarray, y: np.ndarray, bins: int = 10, target="X") -> np.ndarray:
             # Then assess the other bins
             for s in range(1, bins):
                 b = (quants[s] < t_arr) & (t_arr <= quants[s + 1])
-
                 if _has_samples(y, b):
                     r_s[s, d_i] = anderson_ksamp((m_arr[b], m_arr[~b])).statistic
 
@@ -278,7 +286,3 @@ def cli_action(args):
         print_to_console=True,
         seed=args.seed,
     )
-
-
-if __name__ == "__main__":
-    common_args.run_cli(cli_parse, cli_action)
