@@ -150,6 +150,45 @@ def rsa(X: np.ndarray, y: np.ndarray, bins: int = 10, target="X") -> np.ndarray:
     if target == "X":
         t_arr = X_di  # target factor space for analysis
         m_arr = y  # map behavioral region of factor space to output space
+    elif target == "Y":
+        t_arr = y  # target output space for analysis
+        m_arr = X_di  # map outputs back to factor space
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for d_i in range(D):
+            X_di[:] = X[:, d_i]
+
+            # Assess first bin separately, making sure that the
+            # bin edges are inclusive of the lower bound
+            quants = np.quantile(t_arr, seq)
+            b = (quants[0] <= t_arr) & (t_arr <= quants[1])
+            if _has_samples(y, b):
+                r_s[0, d_i] = anderson_ksamp((m_arr[b], m_arr[~b])).statistic
+
+            # Then assess the other bins
+            for s in range(1, bins):
+                b = (quants[s] < t_arr) & (t_arr <= quants[s + 1])
+
+                if _has_samples(y, b):
+                    r_s[s, d_i] = anderson_ksamp((m_arr[b], m_arr[~b])).statistic
+
+    return r_s / np.nanmax(r_s)
+
+
+def rsa_process_convergence(
+    X: np.ndarray, y: np.ndarray, bins: int = 10, target="X"
+) -> np.ndarray:
+    N, D = X.shape
+
+    # Pre-allocated arrays to store data/results
+    seq = np.append(np.arange(0.0, 1.0, (1 / bins)), 1.0)
+    X_di = np.empty(N)  # store of factor values
+    r_s = np.full((bins, D), np.nan)  # results
+
+    if target == "X":
+        t_arr = X_di  # target factor space for analysis
+        m_arr = y  # map behavioral region of factor space to output space
         quants = np.quantile(t_arr, seq)
     if target == "Y":
         t_arr = y  # target output space for analysis
