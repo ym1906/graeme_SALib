@@ -18,6 +18,7 @@ def analyze(
     target: str = "Y",
     print_to_console: bool = False,
     seed: int = None,
+    mode=None,
 ):
     """
     Perform Regional Sensitivity Analysis (RSA), also known as Monte Carlo Filtering.
@@ -109,8 +110,10 @@ def analyze(
     else:
         var_names, _ = extract_group_names(problem.get("groups", []))
 
-    results = rsa(X, Y, bins, target)
-
+    if mode == None:
+        results, quants = rsa(X, Y, bins, target)
+    elif mode == "process":
+        results, quants = rsa_process_convergence(X, Y, bins, target)
     if groups:
         groups = np.array(groups)
         unique_grps = [*dict.fromkeys(groups)]
@@ -127,6 +130,7 @@ def analyze(
     Si["names"] = var_names
     Si["bins"] = np.arange(0.0, 1.0, (1.0 / bins))
     Si["target"] = target
+    Si["quants"] = quants
 
     # Attach object methods specific to this sensitivity method to ResultDict.
     Si.to_df = MethodType(to_df, Si)
@@ -172,8 +176,7 @@ def rsa(X: np.ndarray, y: np.ndarray, bins: int = 10, target="X") -> np.ndarray:
 
                 if _has_samples(y, b):
                     r_s[s, d_i] = anderson_ksamp((m_arr[b], m_arr[~b])).statistic
-
-    return r_s / np.nanmax(r_s)
+    return r_s / np.nanmax(r_s), quants
 
 
 def rsa_process_convergence(
@@ -217,8 +220,7 @@ def rsa_process_convergence(
                 b = (quants[s] < t_arr) & (t_arr <= quants[s + 1])
                 if _has_samples(y, b):
                     r_s[s, d_i] = anderson_ksamp((m_arr[b], m_arr[~b])).statistic
-
-    return r_s / np.nanmax(r_s)
+    return r_s / np.nanmax(r_s), quants
 
 
 def _has_samples(y, sel):

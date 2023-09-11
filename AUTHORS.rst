@@ -2,6 +2,7 @@
 Developers
 ==========
 
+* Graeme T.
 * Jon Herman <jdherman8@gmail.com>
 * Will Usher <william.usher@ouce.ox.ac.uk>
 * Chris Mutel
